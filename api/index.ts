@@ -22,7 +22,7 @@ const mongoUriValidated: string = mongoUri;
 let isMongoConnected = false;
 let currentDatabase = ""; // Valor por defecto, se actualizara al conectar 
 
-async function connectToMongo() {
+const connectToMongo = async () => {
     if(isMongoConnected) return;
 
     // Si existe DB_NAME, forzamos ese nombre de base en la conexion
@@ -47,7 +47,7 @@ const FraseSchema = new mongoose.Schema(
 
 const Frase = mongoose.models.Frases || mongoose.model("Frase", FraseSchema);
 
-function getMongoDebugInfo(){
+const getMongoDebugInfo = () => {
     return{
         database: currentDatabase || mongoose.connection.name,
         collection: Frase.collection.name,
