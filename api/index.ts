@@ -11,7 +11,7 @@ app.use(express.json());
 const mongoUri = process.env.MONGODB_URI;
 
 if (!mongoUri) {
-    throw new Error("Falta la variable de entorno, muy mal!");
+    throw new Error("Falta la variable de entorno, muy mal!!!");
 }
 
 let isMongoConnected = false;
