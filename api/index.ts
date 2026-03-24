@@ -1,7 +1,6 @@
 import express , {Request, Response} from "express";
 import mongoose from "mongoose";
 import dotenv from "dotenv"
-import { error } from "node:console";
 
 // 1.- Activamos las variables de entorno de nuestro archivo secreto
 dotenv.config();
