@@ -1,110 +1,107 @@
-import express , {Request, Response} from "express";
+import express from "express";
+import type { Request, Response } from "express";
 import mongoose from "mongoose";
-import dotenv from "dotenv"
+import dotenv from "dotenv";
 
-// 1.- Activamos las variables de entorno de nuestro archivo secreto
 dotenv.config();
 
-// 2.- Creamos la aplicacion express
 const app = express();
-app.use(express.json()) // permite que nuestra api entienda el json
+app.use(express.json());
 
-// Conexion a MongoDB
+const mongoUri = process.env.MONGODB_URI;
 
-const mongoUri = process.env.MONGODB_URI
-
-if(!mongoUri) {
-    throw new Error ("Falta la variable de entorno, espabila!!")
+if (!mongoUri) {
+    throw new Error("Falta la variable de entorno, muy mal!");
 }
-
-const mongoUriValidated: string = mongoUri;
 
 let isMongoConnected = false;
-let currentDatabase = ""; // Valor por defecto, se actualizara al conectar 
+let currentDatabase = "";
 
 const connectToMongo = async () => {
-    if(isMongoConnected) return;
+    if (isMongoConnected && mongoose.connection.readyState === 1) return;
 
-    // Si existe DB_NAME, forzamos ese nombre de base en la conexion
     const dbNameFromEnv = process.env.DB_NAME;
-    const connectionOptions = dbNameFromEnv ? {dbName: dbNameFromEnv} : undefined;
+    const connectionOptions = dbNameFromEnv ? { dbName: dbNameFromEnv } : undefined;
 
-    await mongoose.connect(mongoUriValidated, connectionOptions)
-    currentDatabase = mongoose.connection.name
-} 
+    await mongoose.connect(mongoUri, connectionOptions);
+    isMongoConnected = true;
+    currentDatabase = mongoose.connection.name;
+};
 
-// 4.- Creamos el molde (Esquema para nuestras frases)
-
-const FraseSchema = new mongoose.Schema(
+// Esquema de Phrasal Verbs
+const PhrasalVerbSchema = new mongoose.Schema(
     {
         text: String,
-        author: String,
+        src: String,
     },
-    {
-        collection: "Frasesclase"
-    }
+    { collection: "Phrasalverbs" }
 );
 
-const Frase = mongoose.models.Frases || mongoose.model("Frase", FraseSchema);
+const PhrasalVerb = mongoose.models.PhrasalVerb || mongoose.model("PhrasalVerb", PhrasalVerbSchema);
 
-const getMongoDebugInfo = () => {
-    return{
-        database: currentDatabase || mongoose.connection.name,
-        collection: Frase.collection.name,
-        readyState: mongoose.connection.readyState,
-    }
-}
-// 5.- Crearemos todas las rutas, get, post, todo esto vamos a configurarlo en vercel.
+// Auxiliar para debug
+const getMongoDebugInfo = () => ({
+    database: currentDatabase || mongoose.connection.name,
+    collection: PhrasalVerb.collection.name,
+    readyState: mongoose.connection.readyState,
+});
 
-// Para debug
-app.get("/api/debug-db", async(req: Request, res: Response) => {
+// RUTAS
+
+// Debug
+app.get("/api/debug-db", async (req: Request, res: Response) => {
     try {
         await connectToMongo();
         res.json(getMongoDebugInfo());
     } catch (error) {
-        console.error("Error al inspeccionar MongoDB:", error)
-        res.status(500).json({
-            error: "No se pudo inspeccionar la conexion",
-            detail: error instanceof Error ? error.message: "Error Desconocido"
-        })
+        res.status(500).json({ error: "Error de conexión", detail: error instanceof Error ? error.message : "Error Desconocido" });
     }
 });
 
-// GET DE LAS FRASES
-app.get("/api/frases", async(req: Request, res: Response)=>{
+// GET - Listar todos
+app.get("/api/phrasalverbs", async (req: Request, res: Response) => {
     try {
         await connectToMongo();
-        const frases = await Frase.find();
-        res.json(frases)
+        const phrasalVerbs = await PhrasalVerb.find();
+        res.json(phrasalVerbs);
     } catch (error) {
-        console.error("Error al leer frases", error)
-        res.status(500).json({
-            error: "No se pudieron obtener las frases",
-            detail: error instanceof Error ? error.message: "Error Desconocido"
-        })
+        res.status(500).json({ error: "No se pudieron obtener los datos" });
     }
 });
 
-// POST DE LAS FRASES
-app.post("/api/frases",async(req: Request, res: Response)=>{
+// POST - Crear uno nuevo
+app.post("/api/phrasalverbs", async (req: Request, res: Response) => {
     try {
-        const { text, author } = req.body
-        if(!text || !author){
-            res.status(400).json({error: "Debes enviar texto y autor, espabila!!"})
+        const { text, src } = req.body;
+        if (!text || !src) {
+            return res.status(400).json({ error: "Debes enviar text y src, muy mal!!" });
         }
 
         await connectToMongo();
-        const nuevaFrase = new Frase({text, author}) //Toma los datos que envia el usuario
-        await nuevaFrase.save() // Lo guarda en la base de datos
-        res.status(201).json(nuevaFrase) //Responder la frase recien creada
+        const nuevaPhrasalVerb = new PhrasalVerb({ text, src });
+        await nuevaPhrasalVerb.save();
+        return res.status(201).json(nuevaPhrasalVerb);
     } catch (error) {
-        console.error("Error al crear la frase:", error)
-        res.status(500).json({
-            error: "No se pudieron obtener las frases",
-            detail: error instanceof Error ? error.message: "Error Desconocido"
-        })
+        return res.status(500).json({ error: "Error al crear" });
     }
-})
+});
 
+// DELETE - Eliminar por ID
+app.delete("/api/phrasalverbs/:id", async (req: Request, res: Response) => {
+    try {
+        const { id } = req.params;
+        await connectToMongo();
+        
+        // Usar .where() evita que TS confunda el filtro con las opciones de Query
+        const eliminado = await PhrasalVerb.findOneAndDelete().where({ _id: id });
+        
+        if (!eliminado) {
+            return res.status(404).json({ error: "No se encontró el elemento" });
+        }
 
+        return res.json({ message: "Eliminado con éxito", id });
+    } catch (error) {
+        return res.status(500).json({ error: "ID no válido o error de servidor" });
+    }
+});
 export default app;
