@@ -15,6 +15,19 @@ const app = express();
 app.use(cors()); 
 app.use(express.json());
 
+// Ruta raíz
+app.get("/", (req: Request, res: Response) => {
+  res.json({ 
+    message: "API Phrasal Verbs funcionando ✅",
+    endpoints: [
+      "GET  /api/phrasalverbs",
+      "POST /api/phrasalverbs",
+      "DELETE /api/phrasalverbs/:id",
+      "GET  /api/debug-db"
+    ]
+  });
+});
+
 const mongoUri = process.env.MONGODB_URI;
 
 if (!mongoUri) {
