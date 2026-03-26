@@ -1,11 +1,18 @@
+import { setServers } from "node:dns/promises";
+setServers(["1.1.1.1", "8.8.8.8"]);
+
 import express from "express";
 import type { Request, Response } from "express";
 import mongoose from "mongoose";
 import dotenv from "dotenv";
+import cors from "cors";
 
 dotenv.config();
 
 const app = express();
+
+// Configuración de CORS
+app.use(cors()); 
 app.use(express.json());
 
 const mongoUri = process.env.MONGODB_URI;
@@ -92,7 +99,6 @@ app.delete("/api/phrasalverbs/:id", async (req: Request, res: Response) => {
         const { id } = req.params;
         await connectToMongo();
         
-        // Usar .where() evita que TS confunda el filtro con las opciones de Query
         const eliminado = await PhrasalVerb.findOneAndDelete().where({ _id: id });
         
         if (!eliminado) {
@@ -104,4 +110,13 @@ app.delete("/api/phrasalverbs/:id", async (req: Request, res: Response) => {
         return res.status(500).json({ error: "ID no válido o error de servidor" });
     }
 });
+
+const PORT = process.env.PORT || 3000;
+
+if (process.env.NODE_ENV !== "production") {
+    app.listen(PORT, () => {
+        console.log(`Servidor corriendo en http://localhost:${PORT}`);
+    });
+}
+
 export default app;
