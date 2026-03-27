@@ -90,19 +90,25 @@ app.get("/api/phrasalverbs", async (req: Request, res: Response) => {
 });
 
 // POST - Crear uno nuevo
-app.post("/api/phrasalverbs", async (req: Request, res: Response) => {
+// POST - Crear varios a la vez
+app.post("/api/phrasalverbs/bulk", async (req: Request, res: Response) => {
     try {
-        const { text, src } = req.body;
-        if (!text || !src) {
-            return res.status(400).json({ error: "Debes enviar text y src, muy mal!!" });
+        const items = req.body;
+        
+        if (!Array.isArray(items) || items.length === 0) {
+            return res.status(400).json({ error: "Debes enviar un array de phrasal verbs" });
+        }
+
+        const invalid = items.some((item) => !item.text || !item.src);
+        if (invalid) {
+            return res.status(400).json({ error: "Cada elemento debe tener text y src" });
         }
 
         await connectToMongo();
-        const nuevaPhrasalVerb = new PhrasalVerb({ text, src });
-        await nuevaPhrasalVerb.save();
-        return res.status(201).json(nuevaPhrasalVerb);
+        const creados = await PhrasalVerb.insertMany(items);
+        return res.status(201).json({ message: `${creados.length} phrasal verbs creados`, data: creados });
     } catch (error) {
-        return res.status(500).json({ error: "Error al crear" });
+        return res.status(500).json({ error: "Error al crear en bulk" });
     }
 });
 
